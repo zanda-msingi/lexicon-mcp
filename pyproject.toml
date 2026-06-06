@@ -1,0 +1,52 @@
+[project]
+name = "lexicon-mcp"
+version = "0.1.0"
+description = "An open-source Model Context Protocol server for Lexicon DJ. Bring an LLM into your DJ library."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "../LICENSE" }
+authors = [{ name = "Zanda Msingi" }]
+keywords = ["mcp", "lexicon", "dj", "music", "model-context-protocol"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Multimedia :: Sound/Audio",
+]
+dependencies = [
+    "mcp>=1.2.0",
+    "httpx>=0.27",
+    "pydantic>=2.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/zanda-msingi/dr-star"
+Repository = "https://github.com/zanda-msingi/dr-star"
+
+[project.scripts]
+lexicon-mcp = "lexicon_mcp.server:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lexicon_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
