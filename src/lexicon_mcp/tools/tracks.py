@@ -67,3 +67,13 @@ async def search_tracks(
     if limit is not None:
         tracks = tracks[:limit]
     return {"total": total, "returned": len(tracks), "tracks": tracks}
+
+
+async def get_track(client: LexiconClient, track_id: int) -> dict[str, Any]:
+    """Return the full record for one track via `GET /v1/track?id=`.
+
+    Includes metadata, applied custom tags, cue points, and source-specific data.
+    Raises LexiconAPIError if the track id does not exist.
+    """
+    data = await client.request("GET", "/v1/track", params={"id": track_id})
+    return data["track"]
