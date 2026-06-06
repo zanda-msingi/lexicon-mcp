@@ -1,0 +1,28 @@
+{
+  "playlists": [
+    {
+      "id": 2,
+      "name": "ROOT",
+      "type": "1",
+      "folderType": "1",
+      "parentId": null,
+      "position": 0,
+      "data": null,
+      "playlists": [
+        {
+          "id": 3,
+          "name": "Example Folder",
+          "type": "1",
+          "parentId": 2,
+          "position": 0,
+          "data": null,
+          "playlists": [
+            { "id": 4, "name": "Example Playlist A", "type": "2", "parentId": 3, "position": 0, "data": null },
+            { "id": 5, "name": "Example Playlist B", "type": "2", "parentId": 3, "position": 1, "data": null }
+          ]
+        },
+        { "id": 6, "name": "Example Playlist C", "type": "2", "parentId": 2, "position": 1, "data": null }
+      ]
+    }
+  ]
+}

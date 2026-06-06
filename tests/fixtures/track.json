@@ -1,0 +1,40 @@
+{
+  "id": 1,
+  "type": "0",
+  "archived": 0,
+  "location": "/Volumes/ExampleDrive/Music/Example Artist - Example Track.mp3",
+  "title": "Example Track",
+  "artist": "Example Artist",
+  "albumTitle": "Example Album",
+  "label": "Example Label",
+  "key": "7M",
+  "genre": "House",
+  "bpm": 136,
+  "rating": 0,
+  "energy": 0,
+  "duration": 142,
+  "comment": "",
+  "dateAdded": "2024-01-01T00:00:00.000Z",
+  "dateModified": "2024-01-01T00:00:00.000Z",
+  "locationUnique": "/volumes/exampledrive/music/example artist - example track.mp3",
+  "cloudFileState": null,
+  "hasCuepoints": false,
+  "data": {
+    "source": { "exampleField": "preserved-losslessly" }
+  },
+  "tags": [],
+  "cuepoints": [
+    {
+      "id": 1,
+      "trackId": 1,
+      "name": "Cue 1",
+      "type": "1",
+      "startTime": 0.02,
+      "endTime": null,
+      "position": 0,
+      "color": "blue",
+      "activeLoop": false,
+      "data": {}
+    }
+  ]
+}

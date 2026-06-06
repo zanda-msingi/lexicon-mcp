@@ -1,0 +1,13 @@
+{
+  "categories": [
+    { "id": 1, "color": "#11A03C", "label": "Genre", "tags": [1, 2] },
+    { "id": 2, "color": "#2984B5", "label": "Mood", "tags": [3] },
+    { "id": 3, "color": "#B7B703", "label": "Timing", "tags": [] },
+    { "id": 4, "color": "#D63A02", "label": "Mix", "tags": [] }
+  ],
+  "tags": [
+    { "id": 1, "categoryId": 1, "label": "House", "shortcut": null },
+    { "id": 2, "categoryId": 1, "label": "Disco", "shortcut": null },
+    { "id": 3, "categoryId": 2, "label": "Energetic", "shortcut": null }
+  ]
+}

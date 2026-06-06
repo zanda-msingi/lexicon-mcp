@@ -1,0 +1,9 @@
+{
+  "id": 4,
+  "name": "Example Playlist A",
+  "type": "2",
+  "parentId": 3,
+  "position": 0,
+  "data": null,
+  "trackIds": [101, 102, 103, 102, 101]
+}
