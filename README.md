@@ -155,3 +155,7 @@ The repo opens with a small core, focused MVP, and an `examples/` folder. Contri
 ## Acknowledgements
 
 Built originally to support [DiaspoRADiCAL](https://example.com) and The DiaspoRADiO Show, but designed from the start to work for any Lexicon user. Thanks to Lexicon's open API and the MCP team for making the bridge possible.
+
+Special thanks to [`PhotonicVelocity/lexicon-python`](https://github.com/PhotonicVelocity/lexicon-python) (PyPI: [`lexicon-python`](https://pypi.org/project/lexicon-python/)). The published Lexicon API docs have no reference section, and that project's source — especially its [`docs/api-issues.md`](https://github.com/PhotonicVelocity/lexicon-python/blob/main/docs/api-issues.md) — was an invaluable **reference map** for the real endpoint shapes and the API's many quirks (a pinned snapshot lives in [`docs/upstream-api-issues.md`](./docs/upstream-api-issues.md)).
+
+We wrote our own thin client rather than depending on it because lexicon-mcp is an **async MCP server**: we wanted an `httpx`-based, asyncio-native client that never blocks the MCP event loop, plus project-specific **safety guardrails** baked into the client (rejecting filters that would silently match the whole library, deduping playlist track ids, and a count-before-bulk-write ceiling). Where we find Lexicon API quirks not yet captured upstream, we send them back as pull requests.
