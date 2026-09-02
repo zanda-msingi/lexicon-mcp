@@ -94,6 +94,22 @@ def build_server(config: Config | None = None) -> FastMCP:
             return await tags.list_custom_tag_categories(lex)
 
     @mcp.tool()
+    async def create_tag_category(label: str, color: str | None = None) -> dict[str, Any]:
+        """Create a custom-tag category (e.g. "Undertow") and return it with its
+        new id. Labels must be unique; Lexicon rejects duplicates.
+        """
+        async with client() as lex:
+            return await tags.create_tag_category(lex, label, color=color)
+
+    @mcp.tool()
+    async def create_tag(category_id: int, label: str) -> dict[str, Any]:
+        """Create a custom tag inside a category and return it with its new id.
+        Tag labels are unique across the whole library (case-sensitive).
+        """
+        async with client() as lex:
+            return await tags.create_tag(lex, category_id, label)
+
+    @mcp.tool()
     async def set_custom_tags(track_id: int, tag_ids: list[int]) -> dict[str, Any]:
         """Set a track's custom tags to EXACTLY tag_ids (replace). Pass [] to
         clear. To add without disturbing others, read the track and set the

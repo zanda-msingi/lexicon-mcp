@@ -14,6 +14,8 @@ MVP_TOOLS = {
 }
 V02_TOOLS = {
     "library_info",
+    "create_tag_category",
+    "create_tag",
 }
 
 

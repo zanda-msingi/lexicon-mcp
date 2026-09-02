@@ -1,4 +1,5 @@
-"""Custom tag tools: list_custom_tag_categories, set_custom_tags, bulk_apply_tags."""
+"""Custom tag tools: list_custom_tag_categories, create_tag_category, create_tag,
+set_custom_tags, bulk_apply_tags."""
 
 from __future__ import annotations
 
@@ -35,6 +36,31 @@ async def list_custom_tag_categories(client: LexiconClient) -> list[dict[str, An
         by_category.setdefault(tag.get("categoryId"), []).append(tag)
 
     return [{**category, "tags": by_category.get(category["id"], [])} for category in categories]
+
+
+async def create_tag_category(
+    client: LexiconClient, label: str, *, color: str | None = None
+) -> dict[str, Any]:
+    """Create a custom-tag category via `POST /v1/tag-category`; return it.
+
+    The response is the new category object at the top level (no `data`
+    wrapper — an upstream quirk the client already handles). Lexicon enforces
+    unique category labels itself (errorCode 107), so a duplicate surfaces as a
+    LexiconAPIError with Lexicon's own message rather than a silent no-op.
+    """
+    body: dict[str, Any] = {"label": label}
+    if color is not None:
+        body["color"] = color
+    return await client.request("POST", "/v1/tag-category", json=body)
+
+
+async def create_tag(client: LexiconClient, category_id: int, label: str) -> dict[str, Any]:
+    """Create a custom tag in a category via `POST /v1/tag`; return it.
+
+    Tag labels are unique across the WHOLE library (case-sensitive), enforced
+    by Lexicon (errorCode 106); a duplicate surfaces as a LexiconAPIError.
+    """
+    return await client.request("POST", "/v1/tag", json={"categoryId": category_id, "label": label})
 
 
 async def set_custom_tags(
