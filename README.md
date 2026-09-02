@@ -70,6 +70,8 @@ Small, composable tools. The LLM combines them; the server never decides what a 
 
 ## Later (v0.3 and beyond)
 
+- `run_lexicon_command` — Lexicon's `/v1/control` command bus (the one its Stream Deck plugin uses) behind an **allowlist** of player and prep actions: cue-point generator, tag writer, relocate, analyze, hotcues, beatgrid, play/pause. Never quit, archive, or clear tags. Most actions act on what is selected in the Lexicon window.
+- `now_playing` and `wait_for_track_change` — follow along while you audition a crate in Lexicon's player: the LLM sees each track as it comes up and tags it on your say-so. Lexicon has no push or webhooks, so this is a long-poll on `/v1/playing`.
 - `add_tracks_to_playlist` / `remove_tracks_from_playlist` — the endpoints exist; "save this set as a crate".
 - `find_similar_tracks` — by key, BPM proximity, tag overlap.
 - `generate_set` — assemble a tracklist for a given duration, energy arc, and constraints.
