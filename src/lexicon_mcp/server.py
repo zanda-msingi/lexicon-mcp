@@ -12,7 +12,7 @@ from mcp.server.fastmcp import FastMCP
 
 from .client import LexiconClient
 from .config import Config, load_config
-from .tools import playlists, smartlists, tags, tracks
+from .tools import library, playlists, smartlists, tags, tracks
 
 
 def build_server(config: Config | None = None) -> FastMCP:
@@ -70,6 +70,16 @@ def build_server(config: Config | None = None) -> FastMCP:
             return await tracks.search_tracks(
                 lex, filter, fields=fields, sort=sort, source=source, limit=limit
             )
+
+    @mcp.tool()
+    async def library_info() -> dict[str, Any]:
+        """Summarise the whole library in one call: track totals and how many
+        carry bpm / key / energy / any tag; key notation in use (open_key,
+        camelot, mixed); playlist counts by kind; every tag category and tag
+        with the number of tracks carrying it. Scans all tracks (fast).
+        """
+        async with client() as lex:
+            return await library.library_info(lex)
 
     @mcp.tool()
     async def get_track(track_id: int) -> dict[str, Any]:

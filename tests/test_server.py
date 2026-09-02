@@ -1,4 +1,4 @@
-"""The MCP server wires up exactly the eight MVP tools."""
+"""The MCP server wires up exactly the expected tools."""
 
 from lexicon_mcp.server import build_server
 
@@ -12,12 +12,15 @@ MVP_TOOLS = {
     "bulk_apply_tags",
     "create_smartlist",
 }
+V02_TOOLS = {
+    "library_info",
+}
 
 
-async def test_registers_all_eight_mvp_tools():
+async def test_registers_exactly_the_expected_tools():
     server = build_server()
     tools = await server.list_tools()
-    assert {t.name for t in tools} == MVP_TOOLS
+    assert {t.name for t in tools} == MVP_TOOLS | V02_TOOLS
 
 
 async def test_every_tool_has_a_description():
