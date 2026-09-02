@@ -82,6 +82,20 @@ def build_server(config: Config | None = None) -> FastMCP:
             return await library.library_info(lex)
 
     @mcp.tool()
+    async def list_untagged_tracks(
+        playlist_id: int | None = None, limit: int = 100, offset: int = 0
+    ) -> dict[str, Any]:
+        """List tracks with no custom tags, as compact records. Give playlist_id
+        to scope to one playlist (the natural unit of a tagging drive), or omit
+        it to scan the whole library and page through the untagged subset with
+        limit/offset; total_untagged is always the true count.
+        """
+        async with client() as lex:
+            return await library.list_untagged_tracks(
+                lex, playlist_id=playlist_id, limit=limit, offset=offset
+            )
+
+    @mcp.tool()
     async def get_track(track_id: int) -> dict[str, Any]:
         """Return the full record for one track (metadata, tags, cues)."""
         async with client() as lex:

@@ -1,4 +1,4 @@
-"""Library-wide tools: library_info.
+"""Library-wide tools: library_info, list_untagged_tracks.
 
 The Lexicon API has no summary endpoint, so these tools scan `GET /v1/tracks`
 in 1000-row pages with a minimal field set. Measured live: ~10 ms per page,
@@ -7,12 +7,14 @@ so a 40k-track library is scanned in well under a second.
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import AsyncIterator, Sequence
 from typing import Any
 
 from ..client import LexiconClient
-from .playlists import list_playlists
+from .playlists import get_playlist_tracks, list_playlists
+from .tracks import COMPACT_TRACK_FIELDS, get_track, select_fields
 
 # Max page size the API allows.
 PAGE_SIZE = 1000
@@ -125,4 +127,56 @@ async def library_info(client: LexiconClient) -> dict[str, Any]:
             }
             for t in tags
         ],
+    }
+
+
+# Bound concurrent /v1/track fetches when resolving a page of untagged ids.
+_FETCH_CONCURRENCY = 8
+
+
+async def list_untagged_tracks(
+    client: LexiconClient,
+    *,
+    playlist_id: int | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """List tracks that carry no custom tag at all — the query a tagging drive
+    needs and the API cannot answer (its `tags=NONE` filter returns everything).
+
+    With `playlist_id`, the playlist's tracks are pulled (compact records) and
+    filtered; `limit`/`offset` are ignored because a playlist is already a
+    bounded unit. Without it, the whole library is scanned with only id and
+    tags (fast), `total_untagged` is the true count, and `limit`/`offset` page
+    through the untagged subset; only the page's tracks are fetched in full and
+    trimmed to COMPACT_TRACK_FIELDS.
+    """
+    if playlist_id is not None:
+        tracks = await get_playlist_tracks(client, playlist_id)
+        untagged = [t for t in tracks if not t.get("tags")]
+        return {
+            "playlist_id": playlist_id,
+            "total_untagged": len(untagged),
+            "returned": len(untagged),
+            "tracks": untagged,
+        }
+
+    untagged_ids: list[int] = []
+    async for row in scan_tracks(client, ["id", "tags"]):
+        if not row.get("tags"):
+            untagged_ids.append(row["id"])
+
+    page_ids = untagged_ids[offset : offset + limit]
+    sem = asyncio.Semaphore(_FETCH_CONCURRENCY)
+
+    async def fetch(track_id: int) -> dict[str, Any]:
+        async with sem:
+            return select_fields(await get_track(client, track_id), COMPACT_TRACK_FIELDS)
+
+    page = await asyncio.gather(*(fetch(tid) for tid in page_ids))
+    return {
+        "total_untagged": len(untagged_ids),
+        "offset": offset,
+        "returned": len(page),
+        "tracks": list(page),
     }
