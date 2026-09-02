@@ -170,6 +170,15 @@ def build_server(config: Config | None = None) -> FastMCP:
                 lex, name, rules, match_all=match_all, parent_id=parent_id
             )
 
+    @mcp.tool()
+    async def delete_playlist(playlist_id: int, allow_playlist: bool = False) -> dict[str, Any]:
+        """Delete a smartlist and return {id, name, kind}. Folders are never
+        deleted (the delete would cascade). An ordinary playlist is deleted
+        only with allow_playlist=True; there is no undo.
+        """
+        async with client() as lex:
+            return await playlists.delete_playlist(lex, playlist_id, allow_playlist=allow_playlist)
+
     return mcp
 
 

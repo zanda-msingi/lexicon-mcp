@@ -1,4 +1,4 @@
-"""Playlist tools: list_playlists, get_playlist_tracks."""
+"""Playlist tools: list_playlists, get_playlist_tracks, delete_playlist."""
 
 from __future__ import annotations
 
@@ -108,3 +108,37 @@ async def get_playlist_tracks(
         return tracks
     keep = COMPACT_TRACK_FIELDS if fields is None else fields
     return [select_fields(t, keep) for t in tracks]
+
+
+async def delete_playlist(
+    client: LexiconClient, playlist_id: int, *, allow_playlist: bool = False
+) -> dict[str, Any]:
+    """Delete one smartlist (or, explicitly, one playlist); return what was removed.
+
+    Reads the tree first so the decision is made on the node's real kind:
+
+    - **folders are never deleted** — a folder delete cascades through every
+      playlist under it, and a crate structure can be decades of curation;
+    - **smartlists delete freely** — they are rule-defined and recreatable;
+    - **playlists need ``allow_playlist=True``** — ordinary playlists are
+      hand-built and there is no undo.
+
+    Uses ``DELETE /v1/playlists`` with a JSON body ``{"ids": [...]}``; the
+    documented query-string form fails (docs/upstream-api-issues.md).
+    """
+    rows = await list_playlists(client)
+    node = next((r for r in rows if r["id"] == playlist_id), None)
+    if node is None:
+        raise ValueError(f"No playlist with id {playlist_id}. Use list_playlists to find it.")
+    if node["kind"] == "folder":
+        raise ValueError(
+            f"Refusing to delete folder {node['path']!r} (id {playlist_id}): a folder "
+            "delete removes everything under it. Delete its contents individually."
+        )
+    if node["kind"] == "playlist" and not allow_playlist:
+        raise ValueError(
+            f"{node['path']!r} (id {playlist_id}) is a playlist, not a smartlist. Pass "
+            "allow_playlist=True to delete it; there is no undo."
+        )
+    await client.request("DELETE", "/v1/playlists", json={"ids": [playlist_id]})
+    return {"id": playlist_id, "name": node["name"], "kind": node["kind"]}

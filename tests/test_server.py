@@ -17,6 +17,7 @@ V02_TOOLS = {
     "create_tag_category",
     "create_tag",
     "list_untagged_tracks",
+    "delete_playlist",
 }
 
 
