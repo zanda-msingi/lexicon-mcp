@@ -29,10 +29,14 @@ def build_server(config: Config | None = None) -> FastMCP:
         return LexiconClient(cfg.base_url)
 
     @mcp.tool()
-    async def list_playlists() -> list[dict[str, Any]]:
-        """Return every playlist and folder as a nested tree."""
+    async def list_playlists(tree: bool = False) -> list[dict[str, Any]]:
+        """Return every playlist, folder and smartlist as a flat list of
+        {id, name, path, kind, parent_id} rows in Lexicon's order, where path
+        joins folder names with " / ". Pass tree=True for the raw nested tree.
+        No track counts either way; use get_playlist_tracks for contents.
+        """
         async with client() as lex:
-            return await playlists.list_playlists(lex)
+            return await playlists.list_playlists(lex, tree=tree)
 
     @mcp.tool()
     async def get_playlist_tracks(

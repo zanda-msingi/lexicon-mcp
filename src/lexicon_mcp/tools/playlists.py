@@ -15,17 +15,48 @@ from .tracks import COMPACT_TRACK_FIELDS, select_fields
 _FETCH_CONCURRENCY = 8
 
 
-async def list_playlists(client: LexiconClient) -> list[dict[str, Any]]:
-    """Return every playlist and folder as a nested tree.
+# Lexicon playlist `type` codes.
+_KINDS = {"1": "folder", "2": "playlist", "3": "smartlist"}
 
-    Faithful to `GET /v1/playlists`: a list whose first element is the ROOT node,
-    with folders (`type:"1"`) containing child `playlists` and playlists
-    (`type:"2"`) as leaves. Track membership is NOT included here (the API does
-    not provide counts in the tree) — use `get_playlist_tracks` for a playlist's
-    contents.
+
+def _flatten(nodes: list[dict[str, Any]], prefix: str = "") -> list[dict[str, Any]]:
+    """Depth-first walk of the tree (Lexicon's own order) into path-labelled rows."""
+    rows: list[dict[str, Any]] = []
+    for node in nodes:
+        path = f"{prefix} / {node['name']}" if prefix else node["name"]
+        rows.append(
+            {
+                "id": node["id"],
+                "name": node["name"],
+                "path": path,
+                "kind": _KINDS.get(node.get("type"), node.get("type")),
+                "parent_id": node.get("parentId"),
+            }
+        )
+        rows.extend(_flatten(node.get("playlists") or [], path))
+    return rows
+
+
+async def list_playlists(client: LexiconClient, *, tree: bool = False) -> list[dict[str, Any]]:
+    """Return every playlist, folder and smartlist.
+
+    By default a flat list in Lexicon's own (depth-first) order, one row per node:
+    `id`, `name`, `path` (folders joined with " / "), `kind`
+    (folder / playlist / smartlist) and `parent_id`. The ROOT node, dates and
+    null-valued fields are omitted, so a 200-node library is a few KB that can be
+    scanned by name. `tree=True` returns `GET /v1/playlists` faithfully: a list
+    whose first element is ROOT with nested `playlists`.
+
+    Track membership is NOT included either way (the API does not provide counts
+    in the tree) — use `get_playlist_tracks` for a playlist's contents.
     """
     data = await client.request("GET", "/v1/playlists")
-    return data["playlists"]
+    if tree:
+        return data["playlists"]
+    roots = data["playlists"]
+    # Skip the synthetic ROOT container(s); start from their children.
+    children = [c for r in roots for c in (r.get("playlists") or [])]
+    return _flatten(children)
 
 
 async def get_playlist_tracks(

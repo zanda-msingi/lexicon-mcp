@@ -17,11 +17,52 @@
           "position": 0,
           "data": null,
           "playlists": [
-            { "id": 4, "name": "Example Playlist A", "type": "2", "parentId": 3, "position": 0, "data": null },
-            { "id": 5, "name": "Example Playlist B", "type": "2", "parentId": 3, "position": 1, "data": null }
+            {
+              "id": 4,
+              "name": "Example Playlist A",
+              "type": "2",
+              "parentId": 3,
+              "position": 0,
+              "data": null
+            },
+            {
+              "id": 5,
+              "name": "Example Playlist B",
+              "type": "2",
+              "parentId": 3,
+              "position": 1,
+              "data": null
+            }
           ]
         },
-        { "id": 6, "name": "Example Playlist C", "type": "2", "parentId": 2, "position": 1, "data": null }
+        {
+          "id": 6,
+          "name": "Example Playlist C",
+          "type": "2",
+          "parentId": 2,
+          "position": 1,
+          "data": null
+        },
+        {
+          "id": 7,
+          "name": "Example Smartlist",
+          "type": "3",
+          "parentId": 2,
+          "position": 2,
+          "data": null,
+          "smartlist": {
+            "matchAll": true,
+            "rules": [
+              {
+                "field": "rating",
+                "operator": "NumberEquals",
+                "values": [
+                  5
+                ]
+              }
+            ]
+          }
+        }
       ]
     }
   ]
