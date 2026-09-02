@@ -2,7 +2,7 @@
 
 *An open-source [Model Context Protocol](https://modelcontextprotocol.io/) server for [Lexicon DJ](https://www.lexicondj.com/). Bring an LLM into your DJ library.*
 
-> **Status:** design phase. The repo and tool surface are scoped; coding begins once the Lexicon Local API is on (Essential tier or higher).
+> **Status:** v0.1 built. All eight MVP tools are implemented, unit-tested against a mocked API (48 tests), and exercised against a real ~40,000-track library. Not yet on PyPI; install from source below. Requires Lexicon Essential or higher for the Local API.
 
 Part of [dr-star](../README.md), the engineering shop of DiaspoRADiCAL Soundscapes.
 
@@ -63,48 +63,58 @@ Once the MVP is stable, the next round opens up the more creative tools:
 
 ## Configuration
 
-The server expects two things at runtime:
+Configuration is optional. With no config file at all, the server talks to `http://localhost:48624`. To override, put a `config.toml` in the working directory or point `LEXICON_MCP_CONFIG` at one:
 
 ```toml
 # config.toml
 [lexicon]
 base_url = "http://localhost:48624"
-api_key = "..."   # optional, only if Lexicon's API requires one
 
 [server]
 log_level = "info"
 ```
 
+The Local API currently has no authentication, so there is no key to configure. (Lexicon's docs say this will change; when it does, the client will grow an `api_key` setting.)
+
 Before starting, the user enables the Local API in Lexicon: **Settings > Integrations > Local API > Enable**. (Requires Lexicon Essential or higher.)
 
-## Install (planned)
+## Install
+
+From source (the only path until the package is on PyPI):
 
 ```bash
-# via pipx (recommended for end users)
-pipx install lexicon-mcp
-
-# via uv (for development)
-uv tool install lexicon-mcp
-
-# clone and run from source
 git clone https://github.com/zanda-msingi/dr-star.git
 cd dr-star/lexicon-mcp
 uv sync
-uv run lexicon-mcp
+uv run pytest      # 48 tests, no Lexicon needed
+uv run lexicon-mcp # starts the stdio server; expects Lexicon running
 ```
 
-Then in your MCP client config (Claude Desktop, Cowork, Cursor):
+Then register it with your MCP client (Claude Desktop, Claude Code, Cowork, Cursor). Point `--directory` at your checkout:
 
 ```json
 {
   "mcpServers": {
     "lexicon": {
-      "command": "lexicon-mcp",
-      "args": []
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/dr-star/lexicon-mcp", "lexicon-mcp"]
     }
   }
 }
 ```
+
+Once published, `pipx install lexicon-mcp` will make `"command": "lexicon-mcp"` enough on its own.
+
+## Known limits (v0.1)
+
+Honest notes from running it against a real library. Most are Lexicon API behaviour that the server surfaces rather than hides.
+
+- **Tags are ids, not labels.** `set_custom_tags` and `bulk_apply_tags` take tag ids. Call `list_custom_tag_categories` first and map labels to ids.
+- **Playlist pulls are big.** `get_playlist_tracks` returns full track records (cue points, tempo markers, source blobs). Expect roughly 3 KB per track; a 100-track playlist is ~350 KB of JSON. Pull one playlist at a time.
+- **Search caps at 1000 records** server-side, whatever `limit` you pass, and there is no offset. `total` is always the true count, so narrow the filter when `total` exceeds what came back.
+- **No "untagged tracks" filter.** The API's `tags=NONE` returns *every* track, so the server refuses it rather than let it leak into a bulk write.
+- **Key notation.** Lexicon stores keys in Open Key form (`1D` major, `6M` minor). Its key filter understands Camelot equivalents, so filtering on `1M` also matches tracks stored as `8A`.
+- **Smartlist deletion is not exposed.** `create_smartlist` is one-way in v0.1; remove test smartlists in Lexicon itself.
 
 ## Roadmap
 
@@ -119,18 +129,22 @@ Then in your MCP client config (Claude Desktop, Cowork, Cursor):
 lexicon-mcp/
 ├── pyproject.toml
 ├── README.md
+├── docs/
+│   └── upstream-api-issues.md   # pinned snapshot of known Lexicon API quirks
 ├── src/
 │   └── lexicon_mcp/
-│       ├── __init__.py
-│       ├── server.py    # MCP server entrypoint
-│       ├── client.py    # thin Lexicon REST client
-│       ├── config.py
-│       └── tools/       # one module per tool
-│           ├── playlists.py
-│           ├── tracks.py
-│           ├── tags.py
-│           └── smartlists.py
-├── tests/
+│       ├── server.py      # FastMCP stdio entrypoint; registers the eight tools
+│       ├── client.py      # thin async httpx client; unwraps envelopes, raises on errors
+│       ├── config.py      # TOML config (tomllib), defaults work with no file
+│       ├── errors.py      # LexiconConnectionError / LexiconAPIError
+│       ├── guardrails.py  # unsafe-filter, dedupe, and bulk-write-ceiling checks
+│       ├── models.py      # Pydantic shapes built from real responses
+│       └── tools/         # one module per tool family
+│           ├── playlists.py   # list_playlists, get_playlist_tracks
+│           ├── tracks.py      # search_tracks, get_track
+│           ├── tags.py        # list_custom_tag_categories, set_custom_tags, bulk_apply_tags
+│           └── smartlists.py  # create_smartlist
+├── tests/                 # pytest, mocked API, sanitized fixtures
 └── examples/
     ├── tag_a_playlist.md
     ├── generate_a_set.md
@@ -154,7 +168,7 @@ The repo opens with a small core, focused MVP, and an `examples/` folder. Contri
 
 ## Acknowledgements
 
-Built originally to support [DiaspoRADiCAL](https://example.com) and The DiaspoRADiO Show, but designed from the start to work for any Lexicon user. Thanks to Lexicon's open API and the MCP team for making the bridge possible.
+Built originally to support DiaspoRADiCAL Soundscapes and [The DiaspoRADiO Show](https://www.xray.fm/shows/the-diasporadio-show), but designed from the start to work for any Lexicon user. Thanks to Lexicon's open API and the MCP team for making the bridge possible.
 
 Special thanks to [`PhotonicVelocity/lexicon-python`](https://github.com/PhotonicVelocity/lexicon-python) (PyPI: [`lexicon-python`](https://pypi.org/project/lexicon-python/)). The published Lexicon API docs have no reference section, and that project's source — especially its [`docs/api-issues.md`](https://github.com/PhotonicVelocity/lexicon-python/blob/main/docs/api-issues.md) — was an invaluable **reference map** for the real endpoint shapes and the API's many quirks (a pinned snapshot lives in [`docs/upstream-api-issues.md`](./docs/upstream-api-issues.md)).
 
