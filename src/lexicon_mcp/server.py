@@ -35,10 +35,19 @@ def build_server(config: Config | None = None) -> FastMCP:
             return await playlists.list_playlists(lex)
 
     @mcp.tool()
-    async def get_playlist_tracks(playlist_id: int) -> list[dict[str, Any]]:
-        """Return the full track records for a playlist, in playlist order."""
+    async def get_playlist_tracks(
+        playlist_id: int,
+        fields: list[str] | None = None,
+        full: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Return a playlist's tracks in playlist order. By default each record
+        carries a compact field set (id, title, artist, albumTitle, genre,
+        comment, bpm, key, energy, year, duration, rating, playCount, tags).
+        Pass `fields` to choose exactly which fields, or `full=True` for the
+        complete records including cue points and tempo markers (~3 KB each).
+        """
         async with client() as lex:
-            return await playlists.get_playlist_tracks(lex, playlist_id)
+            return await playlists.get_playlist_tracks(lex, playlist_id, fields=fields, full=full)
 
     @mcp.tool()
     async def search_tracks(

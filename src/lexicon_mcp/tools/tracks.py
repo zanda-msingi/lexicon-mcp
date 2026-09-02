@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from ..client import LexiconClient
@@ -11,6 +12,35 @@ from ..guardrails import assert_safe_search_filter
 # pagination — a broad filter can match thousands — so we truncate the payload
 # while still reporting the true total.
 _DEFAULT_RESULT_LIMIT = 100
+
+# The fields a tagging or set-building conversation actually reads. Full records
+# are ~3 KB each (Traktor blobs, cue points, tempo markers, file paths); this set
+# is a few hundred bytes. Tools that return many tracks default to it.
+COMPACT_TRACK_FIELDS: tuple[str, ...] = (
+    "id",
+    "title",
+    "artist",
+    "albumTitle",
+    "genre",
+    "comment",
+    "bpm",
+    "key",
+    "energy",
+    "year",
+    "duration",
+    "rating",
+    "playCount",
+    "tags",
+)
+
+
+def select_fields(track: dict[str, Any], fields: Sequence[str]) -> dict[str, Any]:
+    """Return only `fields` from a track record, in the order given.
+
+    Missing fields are simply absent (never invented), so the result is
+    faithful to what Lexicon returned.
+    """
+    return {f: track[f] for f in fields if f in track}
 
 
 def _normalize_sort(sort: list[Any]) -> list[dict[str, str]]:
@@ -47,7 +77,9 @@ async def search_tracks(
     fails loudly instead of quietly returning the whole library.
 
     Search has no server-side pagination; `limit` truncates the returned records
-    (None = no cap) while `total` always reports the real match count.
+    (None = no cap) while `total` always reports the real match count. When
+    `fields` is given, records contain exactly those fields (Lexicon otherwise
+    forces `type`, `archived` and `location` into every one).
     """
     assert_safe_search_filter(filter)
 
@@ -66,6 +98,10 @@ async def search_tracks(
     total = data.get("total", len(tracks))
     if limit is not None:
         tracks = tracks[:limit]
+    if fields is not None:
+        # Lexicon forces type/archived/location into every record regardless of
+        # `fields`; honour what the caller asked for.
+        tracks = [select_fields(t, fields) for t in tracks]
     return {"total": total, "returned": len(tracks), "tracks": tracks}
 
 

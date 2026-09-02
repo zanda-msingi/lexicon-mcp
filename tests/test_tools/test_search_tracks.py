@@ -67,3 +67,26 @@ async def test_caps_returned_tracks_but_reports_true_total(make_client):
     assert result["total"] == 5  # the real match count, not truncated
     assert result["returned"] == 2
     assert len(result["tracks"]) == 2
+
+
+async def test_fields_strips_the_columns_lexicon_forces_in(make_client):
+    # Lexicon always adds type/archived/location even when `fields` excludes them.
+    def handler(request: httpx.Request) -> httpx.Response:
+        track = {"id": 1, "title": "T", "type": "0", "archived": 0, "location": "/x.mp3"}
+        return httpx.Response(200, json={"data": {"total": 1, "tracks": [track]}})
+
+    async with make_client(handler) as client:
+        result = await search_tracks(client, {"artist": "X"}, fields=["id", "title"])
+
+    assert result["tracks"] == [{"id": 1, "title": "T"}]
+
+
+async def test_without_fields_search_returns_records_untouched(make_client):
+    def handler(request: httpx.Request) -> httpx.Response:
+        track = {"id": 1, "title": "T", "type": "0", "location": "/x.mp3"}
+        return httpx.Response(200, json={"data": {"total": 1, "tracks": [track]}})
+
+    async with make_client(handler) as client:
+        result = await search_tracks(client, {"artist": "X"})
+
+    assert result["tracks"] == [{"id": 1, "title": "T", "type": "0", "location": "/x.mp3"}]

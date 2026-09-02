@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from typing import Any
 
 from ..client import LexiconClient
 from ..errors import LexiconAPIError
 from ..guardrails import dedupe_track_ids
+from .tracks import COMPACT_TRACK_FIELDS, select_fields
 
 # Bound concurrent /v1/track fetches so a large playlist doesn't flood the API.
 _FETCH_CONCURRENCY = 8
@@ -26,11 +28,23 @@ async def list_playlists(client: LexiconClient) -> list[dict[str, Any]]:
     return data["playlists"]
 
 
-async def get_playlist_tracks(client: LexiconClient, playlist_id: int) -> list[dict[str, Any]]:
-    """Return the full track records for a playlist, in playlist order.
+async def get_playlist_tracks(
+    client: LexiconClient,
+    playlist_id: int,
+    *,
+    fields: Sequence[str] | None = None,
+    full: bool = False,
+) -> list[dict[str, Any]]:
+    """Return the track records for a playlist, in playlist order.
 
     `GET /v1/playlist?id=` gives ordered `trackIds` only, so this resolves each to
-    a full record via `GET /v1/track?id=`. Two real-world defenses apply:
+    a record via `GET /v1/track?id=` (there is no field filter on that endpoint,
+    so trimming happens here). By default each record carries only
+    COMPACT_TRACK_FIELDS — full records are ~3 KB apiece and a 100-track pull was
+    375 KB. `fields` selects exactly the given fields; `full=True` returns the
+    complete records (cue points, tempo markers, source blobs and all).
+
+    Two real-world defenses apply:
 
     - duplicate `trackIds` (the API can return them for folder playlists) are
       collapsed, preserving first-seen order;
@@ -58,4 +72,8 @@ async def get_playlist_tracks(client: LexiconClient, playlist_id: int) -> list[d
         if isinstance(result, BaseException):
             raise result  # connection/unknown errors are real failures
         tracks.append(result)
-    return tracks
+
+    if full:
+        return tracks
+    keep = COMPACT_TRACK_FIELDS if fields is None else fields
+    return [select_fields(t, keep) for t in tracks]
