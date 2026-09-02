@@ -49,3 +49,12 @@ async def test_list_playlists_exposes_tree_param():
     server = build_server()
     tools = {t.name: t for t in await server.list_tools()}
     assert "tree" in tools["list_playlists"].inputSchema["properties"]
+
+
+async def test_tag_tools_accept_labels_or_ids():
+    server = build_server()
+    tools = {t.name: t for t in await server.list_tools()}
+    for name in ("set_custom_tags", "bulk_apply_tags"):
+        items = tools[name].inputSchema["properties"]["tag_ids"]["items"]
+        kinds = {alt["type"] for alt in items.get("anyOf", [items])}
+        assert kinds == {"integer", "string"}, (name, items)

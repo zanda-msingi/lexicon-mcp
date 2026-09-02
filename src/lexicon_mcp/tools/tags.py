@@ -63,8 +63,73 @@ async def create_tag(client: LexiconClient, category_id: int, label: str) -> dic
     return await client.request("POST", "/v1/tag", json={"categoryId": category_id, "label": label})
 
 
+TagRef = int | str
+
+
+async def resolve_tag_ids(client: LexiconClient, tag_refs: list[TagRef]) -> list[int]:
+    """Turn tag references into tag ids against the LIVE taxonomy.
+
+    A reference is an int (passed through untouched) or a string: either
+    ``"Category/Label"`` or a bare ``"Label"``. Tag labels are unique across the
+    library (Lexicon enforces it, case-sensitively), so a bare label resolves by
+    exact match first and falls back to a case-insensitive match only when that
+    is unique; an ambiguous fallback or an unknown label raises ValueError
+    naming the options. The taxonomy is read at most once per call, and not at
+    all when every reference is an int. Nothing about the taxonomy is baked in.
+    """
+    if all(isinstance(ref, int) for ref in tag_refs):
+        return list(tag_refs)
+
+    taxonomy = await client.request("GET", "/v1/tags")
+    tags = taxonomy.get("tags", [])
+    categories = {c["id"]: c.get("label", "") for c in taxonomy.get("categories", [])}
+
+    def qualified(tag: dict[str, Any]) -> str:
+        return f"{categories.get(tag.get('categoryId'), '?')}/{tag.get('label')} (id {tag['id']})"
+
+    resolved: list[int] = []
+    for ref in tag_refs:
+        if isinstance(ref, int):
+            resolved.append(ref)
+            continue
+        if "/" in ref:
+            cat_label, _, label = ref.partition("/")
+            cat_ids = [
+                i for i, name in categories.items() if name.lower() == cat_label.strip().lower()
+            ]
+            if not cat_ids:
+                raise ValueError(
+                    f"Unknown tag category {cat_label.strip()!r} in {ref!r}. "
+                    f"Categories: {sorted(categories.values())}"
+                )
+            pool = [t for t in tags if t.get("categoryId") in cat_ids]
+            wanted = label.strip()
+        else:
+            pool = tags
+            wanted = ref.strip()
+
+        exact = [t for t in pool if t.get("label") == wanted]
+        if len(exact) == 1:
+            resolved.append(exact[0]["id"])
+            continue
+        loose = [t for t in pool if (t.get("label") or "").lower() == wanted.lower()]
+        if len(loose) == 1:
+            resolved.append(loose[0]["id"])
+            continue
+        if loose:
+            raise ValueError(
+                f"Tag label {ref!r} is ambiguous; use Category/Label. "
+                f"Matches: {', '.join(qualified(t) for t in loose)}"
+            )
+        raise ValueError(
+            f"Unknown tag {ref!r}. Use list_custom_tag_categories to see the taxonomy, "
+            "or create_tag to add it."
+        )
+    return resolved
+
+
 async def set_custom_tags(
-    client: LexiconClient, track_id: int, tag_ids: list[int]
+    client: LexiconClient, track_id: int, tag_ids: list[TagRef]
 ) -> dict[str, Any]:
     """Set a track's custom tags to EXACTLY ``tag_ids`` (replace), return the track.
 
@@ -73,19 +138,21 @@ async def set_custom_tags(
     others, read the track first and set the union (the LLM composes this); to
     add across many tracks safely, use ``bulk_apply_tags``. Pass ``[]`` to clear.
 
+    Entries may be tag ids or labels (``"Genre/Afro House"`` or ``"Afro House"``);
+    labels are resolved against the live taxonomy before any write.
+
     The PATCH response is unreliable for tag edits (often an empty ``{}``), so we
     re-fetch and return the confirmed track state.
     """
-    await client.request(
-        "PATCH", "/v1/track", json={"id": track_id, "edits": {"tags": list(tag_ids)}}
-    )
+    ids = await resolve_tag_ids(client, tag_ids)
+    await client.request("PATCH", "/v1/track", json={"id": track_id, "edits": {"tags": ids}})
     return await get_track(client, track_id)
 
 
 async def bulk_apply_tags(
     client: LexiconClient,
     track_ids: list[int],
-    tag_ids: list[int],
+    tag_ids: list[TagRef],
     *,
     expected_count: int | None = None,
     ceiling: int = DEFAULT_BULK_WRITE_CEILING,
@@ -94,6 +161,7 @@ async def bulk_apply_tags(
 
     ADD semantics: for each track we read its current tags and write back the
     union, so existing tags are preserved — the safe meaning of "apply to many".
+    ``tag_ids`` entries may be ids or labels (resolved once, before any write).
 
     Safety: input track ids are deduped, then the count-before-bulk-write guard
     runs BEFORE any write. It refuses an empty set, a set larger than ``ceiling``
@@ -105,7 +173,7 @@ async def bulk_apply_tags(
     track_ids = dedupe_track_ids(track_ids)
     assert_bulk_within_ceiling(track_ids, ceiling=ceiling, expected_count=expected_count)
 
-    new_tags = list(tag_ids)
+    new_tags = await resolve_tag_ids(client, tag_ids)
     sem = asyncio.Semaphore(_BULK_CONCURRENCY)
 
     async def apply(track_id: int) -> dict[str, Any]:

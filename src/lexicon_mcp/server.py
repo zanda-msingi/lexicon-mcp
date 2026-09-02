@@ -110,9 +110,10 @@ def build_server(config: Config | None = None) -> FastMCP:
             return await tags.create_tag(lex, category_id, label)
 
     @mcp.tool()
-    async def set_custom_tags(track_id: int, tag_ids: list[int]) -> dict[str, Any]:
-        """Set a track's custom tags to EXACTLY tag_ids (replace). Pass [] to
-        clear. To add without disturbing others, read the track and set the
+    async def set_custom_tags(track_id: int, tag_ids: list[int | str]) -> dict[str, Any]:
+        """Set a track's custom tags to EXACTLY tag_ids (replace). Entries may
+        be tag ids or labels ("Genre/Afro House" or just "Afro House"). Pass []
+        to clear. To add without disturbing others, read the track and set the
         union, or use bulk_apply_tags for many tracks.
         """
         async with client() as lex:
@@ -121,13 +122,14 @@ def build_server(config: Config | None = None) -> FastMCP:
     @mcp.tool()
     async def bulk_apply_tags(
         track_ids: list[int],
-        tag_ids: list[int],
+        tag_ids: list[int | str],
         expected_count: int | None = None,
         ceiling: int = 500,
     ) -> dict[str, Any]:
-        """Add tag_ids to each of track_ids (merge, never wipe). Refuses an empty
-        set, a set over `ceiling`, or a mismatch with `expected_count`, before
-        any write. Returns a summary of updated/unchanged/failed.
+        """Add tag_ids (ids or labels like "Genre/Afro House") to each of
+        track_ids (merge, never wipe). Refuses an empty set, a set over
+        `ceiling`, or a mismatch with `expected_count`, before any write.
+        Returns a summary of updated/unchanged/failed.
         """
         async with client() as lex:
             return await tags.bulk_apply_tags(
