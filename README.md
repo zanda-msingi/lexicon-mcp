@@ -2,7 +2,7 @@
 
 *An open-source [Model Context Protocol](https://modelcontextprotocol.io/) server for [Lexicon DJ](https://www.lexicondj.com/). Bring an LLM into your DJ library.*
 
-> **Status:** v0.1 built. All eight MVP tools are implemented, unit-tested against a mocked API (48 tests), and exercised against a real ~40,000-track library. Not yet on PyPI; install from source below. Requires Lexicon Essential or higher for the Local API.
+> **Status:** v0.2. Thirteen tools, unit-tested against a mocked API and exercised against a real ~40,000-track library. Not yet on PyPI; install from source below. Requires Lexicon Essential or higher for the Local API.
 
 Part of [dr-star](../README.md), the engineering shop of DiaspoRADiCAL Soundscapes.
 
@@ -36,28 +36,43 @@ Putting them together gives DJs something none of the major DJ apps offer out of
 
 Three moving parts. The MCP server is the thin one in the middle.
 
-## Tool surface (MVP, v0.1)
+## Tool surface (v0.2)
 
-The first release exposes a small, well-shaped set of tools. Enough for tagging, querying, and curated set-building.
+Small, composable tools. The LLM combines them; the server never decides what a track should be tagged.
+
+**Read the library**
 
 | Tool | Purpose |
 |---|---|
-| `list_playlists` | Return every playlist and folder with track counts. |
-| `get_playlist_tracks` | All tracks in a given playlist, with full metadata. |
-| `search_tracks` | Free-text and structured search (title, artist, BPM range, key, energy, tags). |
-| `get_track` | Full record for one track: metadata, custom tags, cues, beatgrid info. |
+| `library_info` | One-call summary: track totals, bpm/key/energy/tag coverage, key notation in use, playlist counts, every tag with its track count. |
+| `list_playlists` | Every folder, playlist and smartlist as flat `{id, name, path, kind, parent_id}` rows in Lexicon's order. `tree=True` for the raw nested tree. |
+| `get_playlist_tracks` | A playlist's tracks in order, as compact records by default. `fields` picks exactly which fields; `full=True` returns everything (cues, tempo markers, source blobs). |
+| `search_tracks` | Structured search: substring text, `>=`/`<=` comparisons, inclusive `"A-B"` ranges, AND across fields, sort, field selection. |
+| `get_track` | Full record for one track. |
+| `list_untagged_tracks` | Tracks with no custom tag, scoped to a playlist or paged across the whole library. The API cannot do this; the server scans for it. |
+
+**Tag**
+
+| Tool | Purpose |
+|---|---|
 | `list_custom_tag_categories` | The taxonomy currently defined in Lexicon. |
-| `set_custom_tags` | Apply one or more custom tags to a track. |
-| `bulk_apply_tags` | Apply the same tag(s) to many tracks in one call. |
-| `create_smartlist` | Create a Lexicon Smartlist from a query (BPM range, key, tag filters, etc.). |
+| `create_tag_category` | Add a category (e.g. "Undertow"). |
+| `create_tag` | Add a tag to a category. |
+| `set_custom_tags` | Replace a track's tags. Accepts ids or labels (`"Genre/Afro House"` or `"Afro House"`). |
+| `bulk_apply_tags` | Merge the same tag(s) into many tracks, with a count check before any write. Ids or labels. |
 
-## Tool surface (v0.2 and beyond)
+**Curate**
 
-Once the MVP is stable, the next round opens up the more creative tools:
+| Tool | Purpose |
+|---|---|
+| `create_smartlist` | Create a Lexicon smartlist from rules. |
+| `delete_playlist` | Delete a smartlist, or a playlist with `allow_playlist=True`. Never a folder. |
 
+## Later (v0.3 and beyond)
+
+- `add_tracks_to_playlist` / `remove_tracks_from_playlist` — the endpoints exist; "save this set as a crate".
 - `find_similar_tracks` — by key, BPM proximity, tag overlap.
 - `generate_set` — assemble a tracklist for a given duration, energy arc, and constraints.
-- `suggest_tags_for_track` — pull track context, ask the calling LLM (via prompt template) to propose tags against the configured taxonomy.
 - `write_tags_to_file` — trigger Lexicon's "write tags to file" on a track or set.
 - `find_path_relinks` — propose path remappings for moved files.
 
@@ -86,7 +101,7 @@ From source (the only path until the package is on PyPI):
 git clone https://github.com/zanda-msingi/dr-star.git
 cd dr-star/lexicon-mcp
 uv sync
-uv run pytest      # 48 tests, no Lexicon needed
+uv run pytest      # 84 tests, no Lexicon needed
 uv run lexicon-mcp # starts the stdio server; expects Lexicon running
 ```
 
@@ -105,22 +120,22 @@ Then register it with your MCP client (Claude Desktop, Claude Code, Cowork, Curs
 
 Once published, `pipx install lexicon-mcp` will make `"command": "lexicon-mcp"` enough on its own.
 
-## Known limits (v0.1)
+## Known limits (v0.2)
 
 Honest notes from running it against a real library. Most are Lexicon API behaviour that the server surfaces rather than hides.
 
-- **Tags are ids, not labels.** `set_custom_tags` and `bulk_apply_tags` take tag ids. Call `list_custom_tag_categories` first and map labels to ids.
-- **Playlist pulls are big.** `get_playlist_tracks` returns full track records (cue points, tempo markers, source blobs). Expect roughly 3 KB per track; a 100-track playlist is ~350 KB of JSON. Pull one playlist at a time.
 - **Search caps at 1000 records** server-side, whatever `limit` you pass, and there is no offset. `total` is always the true count, so narrow the filter when `total` exceeds what came back.
-- **No "untagged tracks" filter.** The API's `tags=NONE` returns *every* track, so the server refuses it rather than let it leak into a bulk write.
-- **Key notation.** Lexicon stores keys in Open Key form (`1D` major, `6M` minor). Its key filter understands Camelot equivalents, so filtering on `1M` also matches tracks stored as `8A`.
-- **Smartlist deletion is not exposed.** `create_smartlist` is one-way in v0.1; remove test smartlists in Lexicon itself.
+- **Search has no "untagged" filter.** The API's `tags=NONE` returns *every* track, so `search_tracks` refuses it. Use `list_untagged_tracks`, which scans for them.
+- **Range syntax is particular.** `"bpm": "118-124"` works (inclusive). `">=118 <=124"` in one string silently matches nothing. Unanalysed tracks carry `bpm: 0`, so an upper-bound-only filter sweeps them in.
+- **Key notation.** Lexicon stores keys in Open Key form (`1D` major, `6M` minor) and its key filter understands Camelot equivalents. `library_info` reports which notation a library uses.
+- **Labels are unique library-wide, case-sensitively.** Lexicon enforces it. Label resolution matches exactly first and case-insensitively only when that is unique.
+- **Full records are ~3 KB each.** `get_playlist_tracks(full=True)` and `get_track` return them; everything else is compact by default.
 
 ## Roadmap
 
-- **v0.1.** MVP tools above. Documented. Tested against a real library.
-- **v0.2.** Tagging helpers, set generation, file-tag writing.
-- **v0.3.** "Recipes" that combine multiple tools (e.g. "prep this folder for a wedding set").
+- **v0.1.** Eight MVP tools. Documented. Tested against a real library. Done.
+- **v0.2.** What real use asked for: compact payloads, flat playlist listing, `library_info`, taxonomy creation, tag labels, untagged listing, smartlist deletion. Done.
+- **v0.3.** Playlist membership tools, similarity, set assembly, file-tag writing.
 - **v0.4.** Optional support for other DJ library backends (Rekordbox via XML, Engine DJ via SQLite). Lexicon stays the primary because it's the universal converter.
 
 ## Project layout
@@ -140,9 +155,10 @@ lexicon-mcp/
 │       ├── guardrails.py  # unsafe-filter, dedupe, and bulk-write-ceiling checks
 │       ├── models.py      # Pydantic shapes built from real responses
 │       └── tools/         # one module per tool family
-│           ├── playlists.py   # list_playlists, get_playlist_tracks
+│           ├── playlists.py   # list_playlists, get_playlist_tracks, delete_playlist
 │           ├── tracks.py      # search_tracks, get_track
-│           ├── tags.py        # list_custom_tag_categories, set_custom_tags, bulk_apply_tags
+│           ├── tags.py        # list_custom_tag_categories, create_*, set_custom_tags, bulk_apply_tags
+│           ├── library.py     # library_info, list_untagged_tracks
 │           └── smartlists.py  # create_smartlist
 ├── tests/                 # pytest, mocked API, sanitized fixtures
 └── examples/

@@ -2,11 +2,15 @@
 
 **Goal:** assemble a tracklist along an energy arc from your own library, then save the candidate pool as a Lexicon smartlist.
 
-There is no `generate_set` tool in v0.1. The LLM composes `search_tracks` calls, reasons about the results, and orders the set. This is deliberate: the server does plumbing, the LLM does taste.
+There is no `generate_set` tool yet. The LLM composes `search_tracks` calls, reasons about the results, and orders the set. This is deliberate: the server does plumbing, the LLM does taste.
 
-## Before you search: know your library's notation
+## Before you search: know your library
 
-Lexicon stores keys in **Open Key** notation: `1D` is a major key, `6M` is minor. Its key filter understands Camelot equivalents, so `"key": "1M"` also matches tracks stored as `8A`. Mixed In Key, if you use it, writes Camelot plus energy into the `comment` field (`"8B - Energy 6"`).
+```
+library_info()
+```
+
+One call tells you what you are working with: how many tracks carry bpm, key and energy, which key notation is in use, and how much of the library is tagged. Lexicon stores keys in **Open Key** notation (`1D` major, `6M` minor) and its key filter understands Camelot equivalents, so `"key": "1M"` also matches tracks stored as `8A`. Mixed In Key, if you use it, writes Camelot plus energy into the `comment` field (`"8B - Energy 6"`).
 
 Two other facts shape every query:
 
@@ -104,10 +108,11 @@ The operator vocabulary is Lexicon's, not this server's. From Lexicon's API spec
 
 Each rule may also carry `"or": false`; Lexicon's own example includes it. Only `NumberEquals`, `NumberGreaterThan`, and `DateRecent` have been seen live in this project's stock smartlists; the rest come from the spec.
 
-Creation is one-way in v0.1. There is no delete tool, so remove experiments in Lexicon itself.
+To remove it again: `delete_playlist(playlist_id=...)`. Smartlists delete freely; an ordinary playlist needs `allow_playlist=True`, and folders are never deleted through the server.
 
 ## What is missing, honestly
 
 - No `find_similar_tracks` yet. Approximate it with a key-and-BPM-window search around a seed track.
+- No way to save an ordered set as a playlist yet. The add-tracks endpoint exists in Lexicon; it is on the v0.3 list.
 - No duration-aware assembly. The LLM adds up `duration` (seconds) by hand.
 - Energy coverage depends on your analysis history. If most tracks read `energy: 0`, run analysis in Lexicon first.

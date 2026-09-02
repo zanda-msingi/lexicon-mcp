@@ -6,7 +6,7 @@ This walkthrough was written from a real session against a ~40,000-track library
 
 ## 1. Learn the taxonomy
 
-Tag tools take **tag ids**, not labels, so start by reading what exists.
+Tag tools accept labels or ids, but reading the taxonomy first tells you what exists and how it is spelled.
 
 ```
 list_custom_tag_categories()
@@ -23,7 +23,7 @@ list_custom_tag_categories()
 ]
 ```
 
-Keep this response around for the rest of the conversation. It is the label-to-id map for every write that follows. Membership is computed from each tag's `categoryId`, so it is correct even when Lexicon's own category listing is stale.
+If the category you need does not exist yet, `create_tag_category(label="Undertow")` and `create_tag(category_id=..., label="deep")` add it. Lexicon keeps labels unique, so a duplicate comes back as its own error.
 
 ## 2. Find the playlist
 
@@ -31,13 +31,16 @@ Keep this response around for the rest of the conversation. It is the label-to-i
 list_playlists()
 ```
 
-The response is the full tree: a `ROOT` node (id 2) containing folders (`type: "1"`) that contain playlists (`type: "2"`). Smartlists are `type: "3"`. There are no track counts in the tree; walk it by name to find the id you want.
+The response is a flat list, one row per node in Lexicon's order, with the folder path spelled out so you can scan by name:
 
 ```json
-{"id": 74, "name": "Crates", "type": "1", "playlists": [
-  {"id": 77, "name": "Afro pool", "type": "2", "parentId": 74}
-]}
+[
+  {"id": 74, "name": "Crates", "path": "Crates", "kind": "folder", "parent_id": 2},
+  {"id": 77, "name": "Afro pool", "path": "Crates / Afro pool", "kind": "playlist", "parent_id": 74}
+]
 ```
+
+There are no track counts. Pass `tree=True` if you want the raw nested tree instead.
 
 ## 3. Pull the tracks
 
@@ -45,7 +48,7 @@ The response is the full tree: a `ROOT` node (id 2) containing folders (`type: "
 get_playlist_tracks(playlist_id=77)
 ```
 
-Returns full track records in playlist order. Duplicate ids (which Lexicon can emit for folder playlists) are collapsed, and a track that no longer exists is skipped rather than failing the call.
+Returns compact track records in playlist order. Duplicate ids (which Lexicon can emit for folder playlists) are collapsed, and a track that no longer exists is skipped rather than failing the call. To see only the tracks still needing work, `list_untagged_tracks(playlist_id=77)` returns the same records filtered to those with no tags.
 
 The fields that matter for tagging decisions:
 
@@ -57,16 +60,16 @@ The fields that matter for tagging decisions:
 | `bpm`, `key`, `energy`, `year` | The mechanical layer. `energy` may be 0 if never analysed |
 | `tags` | Tag ids already applied. Empty list means untagged |
 
-Full records are large (about 3 KB each, mostly cue points and source-specific blobs). Pull one playlist at a time.
+Compact records are a few hundred bytes each. Pass `fields=[...]` to choose exactly which fields, or `full=True` for the complete records with cue points and source blobs (about 3 KB each).
 
 ## 4. Decide the tags
 
 This is the LLM's job, not the server's. Read the tracks, reason about them, and produce a per-track list of tag ids. For example:
 
-| Track | Reasoning | Tag ids |
+| Track | Reasoning | Tags |
 |---|---|---|
-| Track A | Afro house, 123 BPM, energy 8, comment says 8B | `[1, 55]` (Afro House, Peak Hour) |
-| Track B | Mbira, 100 BPM, energy 2 | `[51, 52]` (Warm, Warmup) |
+| Track A | Afro house, 123 BPM, energy 8, comment says 8B | `["Genre/Afro House", "Timing/Peak Hour"]` |
+| Track B | Mbira, 100 BPM, energy 2 | `["Mood/Warm", "Timing/Warmup"]` |
 
 The server never suggests tags. It has no opinion about your taxonomy.
 
@@ -75,8 +78,10 @@ The server never suggests tags. It has no opinion about your taxonomy.
 Per track, when each track gets its own set:
 
 ```
-set_custom_tags(track_id=1849, tag_ids=[1, 55])
+set_custom_tags(track_id=1849, tag_ids=["Genre/Afro House", "Timing/Peak Hour"])
 ```
+
+Entries may be labels or ids. `"Category/Label"` is unambiguous; a bare `"Peak Hour"` also works because Lexicon keeps tag labels unique across the library. Labels are resolved against the live taxonomy before anything is written, and an unknown label is an error, not a silent skip.
 
 `set_custom_tags` has **replace** semantics: the list you pass becomes the track's complete tag set. To add a tag without disturbing existing ones, read the track first and pass the union. Pass `[]` to clear.
 
@@ -98,6 +103,6 @@ Check `tags`. That is the whole loop.
 
 ## Things that will trip you up
 
-- **Labels vs ids.** Every write takes ids. If you pass a label, the tool fails before touching anything.
 - **Replace vs merge.** `set_custom_tags` replaces; `bulk_apply_tags` merges. Pick deliberately.
-- **Untagged tracks cannot be searched for.** Lexicon's `tags=NONE` filter returns every track, so `search_tracks` refuses it. To find untagged tracks today, pull a playlist and filter on `tags == []` in the conversation.
+- **Case.** Labels match exactly first; `"warm"` still finds `"Warm"` when that is the only case-insensitive match, but an ambiguous match is an error that lists the candidates.
+- **Untagged tracks cannot be searched for.** Lexicon's `tags=NONE` filter returns every track, so `search_tracks` refuses it. `list_untagged_tracks` does the scan instead.

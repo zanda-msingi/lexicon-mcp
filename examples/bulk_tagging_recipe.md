@@ -31,10 +31,12 @@ search_tracks(
 ```
 bulk_apply_tags(
   track_ids=[449, 489, 832, "..."],
-  tag_ids=[1],
+  tag_ids=["Genre/Afro House"],
   expected_count=100
 )
 ```
+
+`tag_ids` takes labels or ids; labels are resolved against the live taxonomy once, before any write.
 
 `expected_count` is the count-before-bulk-write check: if the deduplicated id list is not exactly that long, nothing is written.
 
@@ -103,5 +105,6 @@ A track that errors on its own (deleted between search and write, for instance) 
 
 ## What this recipe cannot do yet
 
-- **Find untagged tracks.** The API cannot filter for them. Until a `list_untagged_tracks` tool exists, pull playlists and filter on `tags == []` in the conversation.
 - **Remove a tag in bulk.** `bulk_apply_tags` only adds. To remove, use `set_custom_tags` per track with the reduced list.
+
+To find what still needs tagging, `list_untagged_tracks(playlist_id=...)` for one crate, or `list_untagged_tracks(limit=100, offset=0)` to page through the whole library's untagged subset with a true total.
