@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Local config / secrets
+config.local.toml
+secrets.toml
+.env
+.env.local
+
+# macOS / editors
+.DS_Store
+._*
+.vscode/
+.idea/
+*.swp
+
+# Real API captures contain personal library data (gig names, track titles,
+# file paths). Keep them LOCAL ONLY. Sanitized fixtures for tests live in
+# tests/fixtures/.
+discovery/
+.cache/
+.local/

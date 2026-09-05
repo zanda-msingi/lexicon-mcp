@@ -4,7 +4,7 @@ version = "0.2.0"
 description = "An open-source Model Context Protocol server for Lexicon DJ. Bring an LLM into your DJ library."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "../LICENSE" }
+license = { file = "LICENSE" }
 authors = [{ name = "Zanda Msingi" }]
 keywords = ["mcp", "lexicon", "dj", "music", "model-context-protocol"]
 classifiers = [
@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/zanda-msingi/dr-star"
-Repository = "https://github.com/zanda-msingi/dr-star"
+Homepage = "https://github.com/zanda-msingi/lexicon-mcp"
+Repository = "https://github.com/zanda-msingi/lexicon-mcp"
 
 [project.scripts]
 lexicon-mcp = "lexicon_mcp.server:main"

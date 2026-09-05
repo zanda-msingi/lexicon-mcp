@@ -4,8 +4,6 @@
 
 > **Status:** v0.2. Thirteen tools, unit-tested against a mocked API and exercised against a real ~40,000-track library. Not yet on PyPI; install from source below. Requires Lexicon Essential or higher for the Local API.
 
-Part of [dr-star](../README.md), the engineering shop of DiaspoRADiCAL Soundscapes.
-
 ## What this is
 
 `lexicon-mcp` is a small local MCP server that wraps Lexicon DJ's REST API (`http://localhost:48624`) so any MCP-aware AI client (Claude in Cowork, Claude Desktop, Cursor, etc.) can read, query, and modify your DJ library through structured tool calls.
@@ -182,11 +180,13 @@ The repo opens with a small core, focused MVP, and an `examples/` folder. Contri
 
 ## License
 
-[MIT](../LICENSE).
+[MIT](LICENSE).
 
 ## Acknowledgements
 
 Built originally to support DiaspoRADiCAL Soundscapes and [The DiaspoRADiO Show](https://www.xray.fm/shows/the-diasporadio-show), but designed from the start to work for any Lexicon user. Thanks to Lexicon's open API and the MCP team for making the bridge possible.
+
+A tip of the hat, too, to [`Turbotailz/lexicon-mcp`](https://github.com/Turbotailz/lexicon-mcp) (npm: [`lexicon-mcp`](https://www.npmjs.com/package/lexicon-mcp)), an independent **TypeScript** MCP server for Lexicon that shares this name in a different ecosystem. It leans toward player control and a generic request escape hatch; this project is Python and leans toward tagging, taxonomy creation, and safety guardrails. Pick whichever fits your setup.
 
 Special thanks to [`PhotonicVelocity/lexicon-python`](https://github.com/PhotonicVelocity/lexicon-python) (PyPI: [`lexicon-python`](https://pypi.org/project/lexicon-python/)). The published Lexicon API docs have no reference section, and that project's source — especially its [`docs/api-issues.md`](https://github.com/PhotonicVelocity/lexicon-python/blob/main/docs/api-issues.md) — was an invaluable **reference map** for the real endpoint shapes and the API's many quirks (a pinned snapshot lives in [`docs/upstream-api-issues.md`](./docs/upstream-api-issues.md)).
 
