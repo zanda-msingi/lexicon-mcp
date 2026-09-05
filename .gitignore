@@ -24,6 +24,7 @@ config.local.toml
 secrets.toml
 .env
 .env.local
+.claude/settings.local.json
 
 # macOS / editors
 .DS_Store
