@@ -179,6 +179,29 @@ def build_server(config: Config | None = None) -> FastMCP:
         async with client() as lex:
             return await playlists.delete_playlist(lex, playlist_id, allow_playlist=allow_playlist)
 
+    @mcp.tool()
+    async def create_playlist(
+        name: str, parent_id: int | None = None, track_ids: list[int] | None = None
+    ) -> dict[str, Any]:
+        """Create an ordinary playlist and return {id, name, kind, parent_id,
+        track_count}. Lexicon always creates it empty, so track_ids are added in
+        a second call. Use parent_id to file it inside an existing folder.
+        """
+        async with client() as lex:
+            return await playlists.create_playlist(
+                lex, name, parent_id=parent_id, track_ids=track_ids
+            )
+
+    @mcp.tool()
+    async def add_tracks_to_playlist(playlist_id: int, track_ids: list[int]) -> dict[str, Any]:
+        """Append tracks to a playlist, skipping any already in it, and return
+        {id, name, added, skipped, total}. Lexicon appends without checking, so
+        this dedupes first and is safe to retry. Folders and smartlists are
+        refused; a single call is capped at 500 ids.
+        """
+        async with client() as lex:
+            return await playlists.add_tracks_to_playlist(lex, playlist_id, track_ids)
+
     return mcp
 
 

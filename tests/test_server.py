@@ -19,12 +19,27 @@ V02_TOOLS = {
     "list_untagged_tracks",
     "delete_playlist",
 }
+V03_TOOLS = {
+    "create_playlist",
+    "add_tracks_to_playlist",
+}
 
 
 async def test_registers_exactly_the_expected_tools():
     server = build_server()
     tools = await server.list_tools()
-    assert {t.name for t in tools} == MVP_TOOLS | V02_TOOLS
+    assert {t.name for t in tools} == MVP_TOOLS | V02_TOOLS | V03_TOOLS
+
+
+async def test_playlist_write_tools_expose_their_params():
+    server = build_server()
+    tools = {t.name: t for t in await server.list_tools()}
+    assert {"name", "parent_id", "track_ids"} <= set(
+        tools["create_playlist"].inputSchema["properties"]
+    )
+    assert {"playlist_id", "track_ids"} <= set(
+        tools["add_tracks_to_playlist"].inputSchema["properties"]
+    )
 
 
 async def test_every_tool_has_a_description():

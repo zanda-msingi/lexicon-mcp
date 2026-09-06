@@ -142,3 +142,104 @@ async def delete_playlist(
         )
     await client.request("DELETE", "/v1/playlists", json={"ids": [playlist_id]})
     return {"id": playlist_id, "name": node["name"], "kind": node["kind"]}
+
+
+_PLAYLIST_TYPE = "2"  # 1=folder, 2=playlist, 3=smartlist
+# Same ceiling the tag tools use: a runaway id list is a curation accident.
+_MAX_TRACKS_PER_CALL = 500
+
+
+async def _fetch_playlist(client: LexiconClient, playlist_id: int) -> dict[str, Any]:
+    """One playlist with its ordered trackIds. GET /v1/playlist is the only read
+    that carries membership; /v1/playlists deliberately omits it."""
+    data = await client.request("GET", "/v1/playlist", params={"id": playlist_id})
+    return data["playlist"]
+
+
+async def create_playlist(
+    client: LexiconClient,
+    name: str,
+    *,
+    parent_id: int | None = None,
+    track_ids: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """Create an ordinary playlist and return the new node.
+
+    ``POST /v1/playlist`` creates it empty whatever you send: the body takes only
+    name, type and parentId, and there is no way to seed membership. So when
+    ``track_ids`` is given this adds them in a second call, which is exactly what
+    :func:`add_tracks_to_playlist` does.
+
+    Use ``parent_id`` to file it inside an existing folder; without one it lands
+    at the bottom of the tree.
+    """
+    if not name.strip():
+        raise ValueError("A playlist needs a name.")
+    body: dict[str, Any] = {"name": name, "type": _PLAYLIST_TYPE}
+    if parent_id is not None:
+        body["parentId"] = parent_id
+
+    created = await client.request("POST", "/v1/playlist", json=body)
+    new_id = created["id"]
+    if track_ids:
+        await add_tracks_to_playlist(client, new_id, track_ids)
+
+    node = await _fetch_playlist(client, new_id)
+    return {
+        "id": new_id,
+        "name": node.get("name", name),
+        "kind": "playlist",
+        "parent_id": parent_id,
+        "track_count": len(node.get("trackIds") or []),
+    }
+
+
+async def add_tracks_to_playlist(
+    client: LexiconClient, playlist_id: int, track_ids: Sequence[int]
+) -> dict[str, Any]:
+    """Append tracks to a playlist, skipping any already in it.
+
+    Lexicon's ``PATCH /v1/playlist-tracks`` appends whatever you send without
+    checking, so sending an id twice puts the track in the crate twice. This
+    reads the current membership first and sends only what is genuinely new,
+    which makes the call safe to retry. ``skipped`` counts everything the caller
+    sent that did not land, whether it was a duplicate in the request or already
+    in the crate.
+
+    Refuses folders and smartlists: a folder has no membership of its own, and a
+    smartlist's is computed from its rules, so a manual append is either a
+    no-op or a corruption. Caps a single call at 500 ids.
+    """
+    node = await _fetch_playlist(client, playlist_id)
+    kind = {1: "folder", 2: "playlist", 3: "smartlist"}.get(int(node.get("type", 2)), "playlist")
+    if kind != "playlist":
+        raise ValueError(
+            f"{node.get('name')!r} (id {playlist_id}) is a {kind}, not a playlist. "
+            "A folder holds no tracks of its own and a smartlist computes its own "
+            "membership from rules."
+        )
+
+    wanted = list(dict.fromkeys(int(t) for t in track_ids))  # dedupe, keep order
+    if not wanted:
+        raise ValueError("No track ids given.")
+    if len(wanted) > _MAX_TRACKS_PER_CALL:
+        raise ValueError(
+            f"{len(wanted)} track ids in one call exceeds the {_MAX_TRACKS_PER_CALL} "
+            "ceiling. Split it into batches so a mistake stays small."
+        )
+
+    present = set(node.get("trackIds") or [])
+    new = [t for t in wanted if t not in present]
+    if new:
+        await client.request(
+            "PATCH", "/v1/playlist-tracks", json={"id": playlist_id, "trackIds": new}
+        )
+    return {
+        "id": playlist_id,
+        "name": node.get("name"),
+        "added": len(new),
+        # counted against what the caller sent, so a repeated id and an
+        # already-present one both read as "skipped"
+        "skipped": len(track_ids) - len(new),
+        "total": len(present) + len(new),
+    }
