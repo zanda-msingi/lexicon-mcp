@@ -27,11 +27,11 @@ faithful, well-typed access to Lexicon's data and operations.
 
 ## Tool surface
 
-v0.2: thirteen tools under `src/lexicon_mcp/tools/`, one module per family, each with tests.
+v0.3 in progress: fifteen tools under `src/lexicon_mcp/tools/`, one module per family, each with tests.
 
 - Read: `library_info`, `list_playlists`, `get_playlist_tracks`, `search_tracks`, `get_track`, `list_untagged_tracks`
 - Tag: `list_custom_tag_categories`, `create_tag_category`, `create_tag`, `set_custom_tags`, `bulk_apply_tags`
-- Curate: `create_smartlist`, `delete_playlist`
+- Curate: `create_smartlist`, `create_playlist`, `add_tracks_to_playlist`, `delete_playlist`
 
 Adding one? Follow `.claude/skills/adding-a-lexicon-tool/`. Keep each tool small and
 composable; resist "smart" tools that take many shapes.

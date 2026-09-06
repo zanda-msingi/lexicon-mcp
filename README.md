@@ -2,7 +2,7 @@
 
 *An open-source [Model Context Protocol](https://modelcontextprotocol.io/) server for [Lexicon DJ](https://www.lexicondj.com/). Bring an LLM into your DJ library.*
 
-> **Status:** v0.2. Thirteen tools, unit-tested against a mocked API and exercised against a real ~40,000-track library. Not yet on PyPI; install from source below. Requires Lexicon Essential or higher for the Local API.
+> **Status:** v0.3 in progress. Fifteen tools, unit-tested against a mocked API and exercised against a real ~40,000-track library. Not yet on PyPI; install from source below. Requires Lexicon Essential or higher for the Local API.
 
 ## What this is
 
@@ -34,7 +34,7 @@ Putting them together gives DJs something none of the major DJ apps offer out of
 
 Three moving parts. The MCP server is the thin one in the middle.
 
-## Tool surface (v0.2)
+## Tool surface
 
 Small, composable tools. The LLM combines them; the server never decides what a track should be tagged.
 
@@ -64,13 +64,15 @@ Small, composable tools. The LLM combines them; the server never decides what a 
 | Tool | Purpose |
 |---|---|
 | `create_smartlist` | Create a Lexicon smartlist from rules. |
+| `create_playlist` | Create an ordinary playlist, optionally inside a folder and seeded with tracks. |
+| `add_tracks_to_playlist` | Append tracks, skipping any already there, so the call is safe to retry. Refuses folders and smartlists; 500 ids per call. |
 | `delete_playlist` | Delete a smartlist, or a playlist with `allow_playlist=True`. Never a folder. |
 
-## Later (v0.3 and beyond)
+## Later (the rest of v0.3, and beyond)
 
 - `run_lexicon_command` — Lexicon's `/v1/control` command bus (the one its Stream Deck plugin uses) behind an **allowlist** of player and prep actions: cue-point generator, tag writer, relocate, analyze, hotcues, beatgrid, play/pause. Never quit, archive, or clear tags. Most actions act on what is selected in the Lexicon window.
 - `now_playing` and `wait_for_track_change` — follow along while you audition a crate in Lexicon's player: the LLM sees each track as it comes up and tags it on your say-so. Lexicon has no push or webhooks, so this is a long-poll on `/v1/playing`.
-- `add_tracks_to_playlist` / `remove_tracks_from_playlist` — the endpoints exist; "save this set as a crate".
+- `remove_tracks_from_playlist` — `DELETE /v1/playlist-tracks`, the mirror of the add tool.
 - `find_similar_tracks` — by key, BPM proximity, tag overlap.
 - `generate_set` — assemble a tracklist for a given duration, energy arc, and constraints.
 - `write_tags_to_file` — trigger Lexicon's "write tags to file" on a track or set.
@@ -120,7 +122,7 @@ Then register it with your MCP client (Claude Desktop, Claude Code, Cowork, Curs
 
 Once published, `pipx install lexicon-mcp` will make `"command": "lexicon-mcp"` enough on its own.
 
-## Known limits (v0.2)
+## Known limits
 
 Honest notes from running it against a real library. Most are Lexicon API behaviour that the server surfaces rather than hides.
 
@@ -135,7 +137,10 @@ Honest notes from running it against a real library. Most are Lexicon API behavi
 
 - **v0.1.** Eight MVP tools. Documented. Tested against a real library. Done.
 - **v0.2.** What real use asked for: compact payloads, flat playlist listing, `library_info`, taxonomy creation, tag labels, untagged listing, smartlist deletion. Done.
-- **v0.3.** Playlist membership tools, similarity, set assembly, file-tag writing.
+- **v0.3, in progress.** `create_playlist` and `add_tracks_to_playlist` are in, built because a
+  tagging drive needed to break 1,045 unlabelled tracks into playable crates. Still to come:
+  the `/v1/control` command bus behind an allowlist, now-playing follow-along, similarity,
+  set assembly, file-tag writing.
 - **v0.4.** Optional support for other DJ library backends (Rekordbox via XML, Engine DJ via SQLite). Lexicon stays the primary because it's the universal converter.
 
 ## Project layout
